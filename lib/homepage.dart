@@ -14,6 +14,8 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   double time = 0;
   double height = 0;
+  double gravity = -4.9;
+  double velocity = 2.8;
   static double birdY = 0; // initializing the vertical position of the bird
   double initialPos = birdY; // storing the initial position of the bird
   bool gameStarted = false; // initializing a variable to track game state
@@ -21,6 +23,8 @@ class _HomePageState extends State<HomePage> {
       0.9; // initializing the x-coordinate of the first barrier
   double xTwo =
       xOne + 1.5; // initializing the x-coordinate of the second barrier
+  int score = 0;
+  int best = 0;
 
   // method to make the bird jump
   void jump() {
@@ -40,8 +44,8 @@ class _HomePageState extends State<HomePage> {
     Timer.periodic(const Duration(milliseconds: 100), (timer) {
       time += 0.05; // incrementing time
 
-      // calculating height based on time
-      height = -4.9 * time * time + 2.8 * time;
+      // calculating height based on time using a quadratic equation
+      height = gravity * time * time + velocity * time;
       // updating the UI
       setState(() {
         // updating the vertical position of the bird
@@ -60,13 +64,70 @@ class _HomePageState extends State<HomePage> {
           xTwo -= 0.05;
         }
       });
-
-      // checking if bird reaches the bottom of the screen
-      if (birdY > 1) {
+      if (birdIsDead()) {
         gameStarted = false; //setting gameStarted to false
         timer.cancel(); // cancelling the timer
+        _dialog();
       }
     });
+  }
+
+  void _dialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: Colors.brown,
+          title: const Center(
+            child: Text(
+              "GAME OVER!",
+              style: TextStyle(
+                color: Colors.white,
+              ),
+            ),
+          ),
+          actions: [
+            GestureDetector(
+              onTap: resetGame,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade500,
+                  borderRadius: BorderRadius.circular(5),
+                ),
+                padding: const EdgeInsets.all(5),
+                child: const Text(
+                  "PLAY AGAIN",
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            )
+          ],
+        );
+      },
+    );
+  }
+
+  // method to reset the game
+  void resetGame() {
+    Navigator.of(context).pop();
+    setState(() {
+      birdY = 0;
+      gameStarted = false;
+      time = 0;
+      initialPos = birdY;
+      xOne = 0.9;
+      xTwo = xOne + 1.5;
+    });
+  }
+
+  // method to check if the bird is dead
+  bool birdIsDead() {
+    // checking if bird reaches the bottom of the screen or above the screen
+    if (birdY > 1 || birdY < -1) {
+      return true;
+    } // checking if the bird hits a barrier
+    return false;
   }
 
   @override
@@ -97,6 +158,7 @@ class _HomePageState extends State<HomePage> {
                     child: const Bird(),
                   ),
 
+                  // displaying 'TAP TO PLAY' text if game has not started
                   Container(
                     alignment: const Alignment(0, -0.25),
                     child: gameStarted
@@ -143,7 +205,10 @@ class _HomePageState extends State<HomePage> {
             Expanded(
               child: Container(
                 color: Colors.brown,
-                child: const Score(),
+                child: Score(
+                  score: score,
+                  best: best,
+                ),
               ),
             ),
           ],
