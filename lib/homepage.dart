@@ -1,3 +1,4 @@
+import 'package:flappy_game/screen_start.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:flappy_game/barrier.dart';
@@ -19,12 +20,21 @@ class _HomePageState extends State<HomePage> {
   static double birdY = 0; // initializing the vertical position of the bird
   double initialPos = birdY; // storing the initial position of the bird
   bool gameStarted = false; // initializing a variable to track game state
-  static double xOne =
-      0.9; // initializing the x-coordinate of the first barrier
-  double xTwo =
-      xOne + 1.5; // initializing the x-coordinate of the second barrier
+
   int score = 0;
   int best = 0;
+  double birdWidth = 0.12; // 2 is the width of the screen
+  double birdHeight = 0.12; //2 is the height of the screen
+  //barrier variables
+  static List<double> barrierX = [1, 1 + 1.5]; // X-coordinates of the barriers
+  static double barrierWidth = 0.5; // width of barriers
+  List<List<double>> barrierHeight = [
+    // height of barriers
+    //2 is the height of the screen
+    // [ topHeight , bottom Height]
+    [0.6, 0.3],
+    [0.3, 0.6],
+  ];
 
   // method to make the bird jump
   void jump() {
@@ -34,6 +44,8 @@ class _HomePageState extends State<HomePage> {
       initialPos = birdY;
       // resetting time to 0 to initiate a new jump
       time = 0;
+      // incrementing the score when the bird jumps
+      score += 1;
     });
   }
 
@@ -42,7 +54,7 @@ class _HomePageState extends State<HomePage> {
     gameStarted = true;
     // using a timer to update the game state periodically
     Timer.periodic(const Duration(milliseconds: 100), (timer) {
-      time += 0.05; // incrementing time
+      // time += 0.05; // incrementing time
 
       // calculating height based on time using a quadratic equation
       height = gravity * time * time + velocity * time;
@@ -51,26 +63,24 @@ class _HomePageState extends State<HomePage> {
         // updating the vertical position of the bird
         birdY = initialPos - height;
       });
-      setState(() {
-        // adjusting the x-coordinates of the barriers for animation
-        if (xOne < -2) {
-          xOne += 3.5;
-        } else {
-          xOne -= 0.05;
-        }
-        if (xTwo < -2) {
-          xTwo += 3.5;
-        } else {
-          xTwo -= 0.05;
-        }
-      });
+
+      // checking if the bird is dead
       if (birdIsDead()) {
         gameStarted = false; //setting gameStarted to false
         timer.cancel(); // cancelling the timer
-        _dialog();
+        _dialog(); // displaying a dialog to indicate game over
+        setState(() {
+          getBestScore(); // updating the best score
+        });
       }
+      //keep map moving by moving the barriers
+      moveMap();
+      //keep time going
+      time += 0.05;
     });
   }
+
+  // method to display a dialog when the game is over
 
   void _dialog() {
     showDialog(
@@ -110,97 +120,115 @@ class _HomePageState extends State<HomePage> {
 
   // method to reset the game
   void resetGame() {
-    Navigator.of(context).pop();
+    Navigator.of(context).pop(); // dismissing the dialog
     setState(() {
-      birdY = 0;
+      birdY = 0; // resetting bird position
       gameStarted = false;
-      time = 0;
-      initialPos = birdY;
-      xOne = 0.9;
-      xTwo = xOne + 1.5;
+      time = 0; // resetting time
+      initialPos = birdY; // storing initial bird position
+      barrierX = [1, 1 + 1.5]; // resetting barrier positions
+      score = 0; // resetting the score
     });
+  }
+
+  void getBestScore() {
+    if (score > best) {
+      best = score; // updating the best score if the current score is higher
+    }
   }
 
   // method to check if the bird is dead
   bool birdIsDead() {
-    // checking if bird reaches the bottom of the screen or above the screen
+    // Check if bird hits the bottom or top of the screen
     if (birdY > 1 || birdY < -1) {
-      return true;
-    } // checking if the bird hits a barrier
-    return false;
+      return true; // bird is dead if it hits the top or bottom of the screen
+    }
+    // Check if the bird overlaps with any part of any barrier
+    for (int i = 0; i < barrierX.length; i++) {
+      if (barrierX[i] <= birdWidth &&
+          barrierX[i] + barrierWidth >= -birdWidth &&
+          (birdY <= -1 + barrierHeight[i][0] ||
+              birdY + birdHeight >= 1 - barrierHeight[i][1])) {
+        return true; // bird is dead if it overlaps with a barrier
+      }
+    }
+    return false; // bird is not dead
+  }
+
+  // method to move the barriers
+  void moveMap() {
+    for (int i = 0; i < barrierX.length; i++) {
+      //keep barriers moving
+      setState(() {
+        barrierX[i] -= 0.005; // moving the barriers to the left
+      });
+      // Looping the barriers if they go off the screen
+      if (barrierX[i] < -1.5) {
+        barrierX[i] += 2;
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: GestureDetector(
-        onTap: () {
-          // checking if the game has started
-          if (gameStarted) {
-            jump();
-          } else {
-            startGame(); // starting the game if not already started
-          }
-        },
-        child: Column(
+    return GestureDetector(
+      onTap: () {
+        // checking if the game has started
+        if (gameStarted) {
+          jump();
+        } else {
+          startGame(); // starting the game if not already started
+        }
+      },
+      child: Scaffold(
+        body: Column(
           children: [
             Expanded(
               flex: 2,
-              child: Stack(
-                children: [
-                  // AnimatedContainer for the bird
-                  AnimatedContainer(
-                    color: Colors.blue,
-                    duration: const Duration(
-                        milliseconds: 0 // setting the duration for animation
-                        ),
-                    alignment: Alignment(0, birdY),
-                    child: const Bird(),
-                  ),
+              child: Container(
+                color: Colors.blue,
+                child: Center(
+                  child: Stack(
+                    children: [
+                      Bird(
+                        birdY: birdY, // vertical position of the bird
+                        birdWidth: birdWidth, // width of the bird
+                        birdHeight: birdHeight, // height of the bird
+                      ),
+                      Screen(gameStarted: gameStarted),
 
-                  // displaying 'TAP TO PLAY' text if game has not started
-                  Container(
-                    alignment: const Alignment(0, -0.25),
-                    child: gameStarted
-                        ? const Text("")
-                        : const Text(
-                            'TAP TO PLAY',
-                            style: TextStyle(
-                              fontSize: 18,
-                              color: Colors.white,
-                            ),
-                          ),
+                      // first top barrier
+                      Barrier(
+                        barrierHeight: barrierHeight[0][0],
+                        barrierWidth: barrierWidth,
+                        barrierX: barrierX[0], // x-coordinate of the barrier
+                        bottomBarrier: false,
+                      ),
+                      // first bottom barrier
+                      Barrier(
+                        barrierHeight: barrierHeight[0][1],
+                        barrierWidth: barrierWidth,
+                        barrierX: barrierX[0], // x-coordinate of the barrier
+                        bottomBarrier: true,
+                      ),
+                      // second top barrier
+                      Barrier(
+                        barrierHeight: barrierHeight[1][0],
+                        barrierWidth: barrierWidth,
+                        barrierX: barrierX[1], // x-coordinate of the barrier
+                        bottomBarrier: false,
+                      ),
+                      // second bottom barrier
+                      Barrier(
+                        barrierHeight: barrierHeight[1][1],
+                        barrierWidth: barrierWidth,
+                        barrierX: barrierX[1], // x-coordinate of the barrier
+                        bottomBarrier: true,
+                      ),
+                    ],
                   ),
-
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 0),
-                    alignment: Alignment(xOne, 1.1),
-                    child: const Barrier(size: 200.0),
-                  ),
-
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 0),
-                    alignment: Alignment(xOne, -1.1),
-                    child: const Barrier(size: 150.0),
-                  ),
-
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 0),
-                    alignment: Alignment(xTwo, 1.1),
-                    child: const Barrier(size: 150.0),
-                  ),
-
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 0),
-                    alignment: Alignment(xTwo, -1.1),
-                    child: const Barrier(size: 250.0),
-                  ),
-                ],
+                ),
               ),
-            ),
-            Container(
-              color: Colors.green,
-              height: 15,
             ),
             Expanded(
               child: Container(
